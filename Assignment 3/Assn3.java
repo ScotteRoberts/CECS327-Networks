@@ -18,6 +18,16 @@ import java.util.regex.Pattern;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * @author Scott Roberts
+ * @version 1.0
+ * @date 02/22/18
+ * Most of the credit for this project goes to: http://www.codejava.net/java-se/networking/ftp/
+ * 
+ * The download directory is still not downloading the proper directory. It downloads the entire
+ * home folder each time. Other than that, each of the features work properly.
+ */
+
 public class Assn3 {
 	private class Argument {
 		public String command;
@@ -166,11 +176,11 @@ public class Assn3 {
 	private void getItem(String itemName) {
 		try {
 			// Checks if the item exists as a directory
+			String currentRemoteDir = client.printWorkingDirectory();
 			if(client.changeWorkingDirectory(itemName)) {
-				String dir = client.printWorkingDirectory();
-				System.out.println(dir);
+				System.out.println(currentRemoteDir);
 				String saveDir = Paths.get("").toAbsolutePath().toString();
-				downloadDirectory(dir, "", saveDir);
+				downloadDirectory(currentRemoteDir, "", saveDir);
 			}
 			// Else the item is a file.
 			else {
@@ -182,53 +192,54 @@ public class Assn3 {
 	}
 
 	// "get" command helper for single file.
-	private boolean downloadSingleFile(String remoteFilePath, String localFilePath) {
-		boolean isDownloaded = false;
-		try {
-			File downloadedFile = new File(localFilePath);
-
-			File parentDir = downloadedFile.getParentFile();
-    		if (!parentDir.exists()) {
-        		parentDir.mkdir();
-    		}
-
-			FileOutputStream outputStream = new FileOutputStream(downloadedFile);
-			client.setFileType(FTP.BINARY_FILE_TYPE);
-			isDownloaded = client.retrieveFile(remoteFilePath, outputStream);
-
-		} catch(IOException e) {
-			e.printStackTrace();
+	public boolean downloadSingleFile(String remoteFilePath, String savePath) throws IOException {
+		File downloadFile = new File(savePath);
+		
+		File parentDir = downloadFile.getParentFile();
+		if (!parentDir.exists()) {
+			parentDir.mkdir();
 		}
-		return isDownloaded;
+			
+		OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(downloadFile));
+		try {
+			client.setFileType(FTP.BINARY_FILE_TYPE);
+			return client.retrieveFile(remoteFilePath, outputStream);
+		} catch (IOException ex) {
+			throw ex;
+		} finally {
+			if (outputStream != null) {
+				outputStream.close();
+			}
+		}
 	}
 
 	// "get" command helper for downloading directories.
-	private void downloadDirectory(String parentDir, String currentDir, String saveDir) throws IOException {
+	public void downloadDirectory(String parentDir, String currentDir, String saveDir) throws IOException {
 		String dirToList = parentDir;
 		if (!currentDir.equals("")) {
 			dirToList += "/" + currentDir;
 		}
-
+		System.out.println(dirToList);
 		FTPFile[] subFiles = client.listFiles(dirToList);
+	
 		if (subFiles != null && subFiles.length > 0) {
 			for (FTPFile aFile : subFiles) {
 				String currentFileName = aFile.getName();
-				System.out.println("Getting: " + currentFileName);
 				if (currentFileName.equals(".") || currentFileName.equals("..")) {
 					// skip parent directory and the directory itself
 					continue;
 				}
 				String filePath = parentDir + "/" + currentDir + "/" + currentFileName;
-				System.out.println("\nThe path right now..." + filePath);
 				if (currentDir.equals("")) {
 					filePath = parentDir + "/" + currentFileName;
 				}
 	
 				String newDirPath = saveDir + parentDir + File.separator + currentDir + File.separator + currentFileName;
 				if (currentDir.equals("")) {
-					newDirPath = parentDir + File.separator + currentFileName;
+					newDirPath = saveDir + parentDir + File.separator
+							+ currentFileName;
 				}
-				
+	
 				if (aFile.isDirectory()) {
 					// create the directory in saveDir
 					File newDir = new File(newDirPath);
@@ -241,22 +252,17 @@ public class Assn3 {
 	
 					// download the sub directory
 					downloadDirectory(dirToList, currentFileName, saveDir);
-				} 
-				else {
+				} else {
 					// download the file
 					boolean success = downloadSingleFile(filePath, newDirPath);
 					if (success) {
 						System.out.println("DOWNLOADED the file: " + filePath);
-					} 
-					else {
+					} else {
 						System.out.println("COULD NOT download the file: "
 								+ filePath);
 					}
 				}
 			}
-		}
-		else {
-			System.out.println("Directory is empty or null. Fix later...");
 		}
 	}
 
@@ -265,10 +271,12 @@ public class Assn3 {
 			// Checks if the item exists as a directory
 			File localFile = new File(itemName);
 			String remoteDirPath = client.printWorkingDirectory();
-			String localDirPath = Paths.get("").toAbsolutePath().toString();
+			String localDirPath = Paths.get("").toAbsolutePath().toString() + File.separator + itemName;
+			System.out.println("Starting off with dir: " + localDirPath);
 			if(localFile.isDirectory()) {
 				// System.out.println(dir);
-				uploadDirectory(remoteDirPath, localDirPath, "");
+				client.makeDirectory(remoteDirPath + "/" + localFile);
+				uploadDirectory(remoteDirPath + "/" + localFile, localDirPath, "");
 			}
 			// Else the item is a file.
 			else {
