@@ -68,24 +68,28 @@ public class PastryServer {
 	private String findRouteTableNode(String gUID) {
 		String result = null;
 		String tempGUID = "";
-		String tempDigit = "";
-		int iter = 0;
-
+		int row = 0;
+		
 		while (tempGUID.length() != gUID.length()) {
-			tempDigit = Character.toString(gUID.charAt(iter));
-			
-			if (routeTable.containsKey(tempDigit)) {
-				tempGUID += tempDigit;
-				if (gUID.length() <= iter + 1) {
+			tempGUID += Character.toString(gUID.charAt(row));
+			if (routeTable.containsKey(tempGUID)) {
+				System.out.println("You have a hit");
+				if (gUID.length() <= row + 1) {
 					result = tempGUID + routeTable.get(tempGUID);
+					// System.out.println("Inner TempGUID: " + tempGUID);
+					// System.out.println("Inner Route Table: " + routeTable.get(tempGUID));
+					// System.out.println("Inner Result: " + result);
+				}
+				else {
+					// You have gone too far and did not find a match, backtrack.
+					tempGUID = tempGUID.substring(0, row + 1);
+					result = tempGUID + routeTable.get(tempGUID);
+					// System.out.println("Outer TempGUID: " + tempGUID);
+					// System.out.println("Outer Route Table:" + routeTable.get(tempGUID));
+					// System.out.println("Outer Result: " + result);
 				}
 			}
-			else {
-				// You have gone too far and did not find a match, backtrack.
-				tempGUID = tempGUID.substring(0, iter);
-				result = tempGUID + routeTable.get(tempGUID);
-			}
-			iter++;
+			row++;
 		}
 		return result;
 	}
